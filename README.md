@@ -41,7 +41,7 @@ git clone <your-repo-url> clutch && cd clutch
 cd backend
 python -m pip install -e '.[dev]'
 python -m app.ingest.cli seed          # loads the bundled sample games
-python -m pytest                       # 165 tests, ~8s
+python -m pytest                       # 200 tests, ~8s
 python -m uvicorn app.main:app --reload --port 8000
 
 # 2. frontend, in a second terminal
@@ -58,25 +58,27 @@ cd backend && python -m app.ingest.cli backtest --model blend
 ```
 
 ```
-Model: blend   games: 100   forecasts: 9600
+Model: blend   games: 100   forecasts: 9500
 Fitted params: {'mu': 2.72, 'sigma': 15.64, 'possession_value': 0.55, 'n_games': 100}
 
-  Brier        0.16345   (base rate 0.560)
-  Brier skill  +0.3367
-  Log loss     0.47899
-  ECE / MCE    0.0330 / 0.0892
+  Brier        0.16585   (base rate 0.560)
+  Brier skill  +0.3269
+  Log loss     0.48443
+  ECE / MCE    0.0378 / 0.1003
 
   Reliability diagram
   predicted   observed      n
-      0.021     0.027   1012  #
-      0.151     0.241    378  #########
-      0.252     0.337    517  #############
+      0.023     0.026    942  #
+      0.152     0.213    342  ########
+      0.251     0.330    479  #############
       ...
+      0.850     0.855    759  ##################################
+      0.975     0.980   1836  #######################################
 
   By game state
-  Q1                     Brier 0.22993  skill +0.0668  n=2400
-  Q4                     Brier 0.10159  skill +0.5877  n=1400
-  Clutch (final 5:00)    Brier 0.05431  skill +0.7796  n=1000
+  Q1                     Brier 0.23016  skill +0.0659  n=2400
+  Q4                     Brier 0.10289  skill +0.5824  n=1400
+  Clutch (final 5:00)    Brier 0.06034  skill +0.7551  n=900
 ```
 
 ## Loading real NBA data
@@ -154,6 +156,20 @@ buzzer, linear in between. On the sample data all three land within 0.001 Brier
 of each other overall, with the chain a touch better on calibration error — the
 honest conclusion, and the reason all three are exposed side by side rather than
 one being declared the winner.
+
+### Overtime
+
+Worth calling out because the naive version of this is wrong in a way that is
+very visible on a chart. Treating `seconds_remaining <= 0` as "game over" makes
+win probability snap to 100% the instant anyone leads in overtime.
+
+The awkward part is that boundary values are ambiguous: `0` is both the final
+buzzer of regulation and the tip of OT1, and `-300` is both the end of OT1 and
+the start of OT2. The disambiguator is the score — **an overtime period only
+ever begins from a tie** — so at a boundary a non-zero margin ends the game and
+a zero margin starts five more minutes. That rule lives in
+`backend/app/winprob/clock.py` and `tests/test_clock.py` covers it, including
+double overtime.
 
 ## Calibration and backtesting
 
@@ -307,13 +323,13 @@ Interactive docs at http://localhost:8000/docs.
 ```
 backend/
   app/
-    winprob/     brownian.py · markov.py · calibration.py · service.py · sim_client.py
+    winprob/     brownian.py · markov.py · clock.py · calibration.py · service.py · sim_client.py
     nlq/         provider.py · guardrails.py · schema_context.py
     ingest/      nba_source.py · synthetic.py · loader.py · cli.py · schema.py
     routers/     auth.py · games.py · trends.py · nlq.py · calibration.py
     models.py  security.py  deps.py  config.py  db.py  main.py
   data/sample/   gzipped synthetic fixtures
-  tests/         165 tests
+  tests/         200 tests
 java-sim/        Spring Boot: MarkovSolver · EndgameSimulator · SimController
 frontend/        Vite + React + Recharts
 ```
