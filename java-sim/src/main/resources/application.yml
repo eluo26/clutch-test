@@ -1,0 +1,21 @@
+server:
+  port: 8081
+  # Only ever spoken to by the FastAPI backend on the same host.
+  address: 127.0.0.1
+
+spring:
+  application:
+    name: clutch-sim
+  jackson:
+    default-property-inclusion: non_null
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+logging:
+  level:
+    root: INFO
+    com.clutch.sim: INFO

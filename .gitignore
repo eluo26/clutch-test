@@ -1,0 +1,30 @@
+# secrets
+.env
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# database
+*.db
+*.db-wal
+*.db-shm
+
+# node
+node_modules/
+dist/
+.vite/
+
+# java
+target/
+*.class
+
+# editors / os
+.idea/
+.vscode/
+.DS_Store

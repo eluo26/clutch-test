@@ -1,0 +1,55 @@
+[project]
+name = "clutch-backend"
+version = "0.1.0"
+description = "NBA win probability, league trends, and natural-language play-by-play search"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "email-validator>=2.1",
+    "bcrypt>=4.1",
+    "pyjwt>=2.8",
+    "httpx>=0.27",
+    "python-multipart>=0.0.9",
+]
+
+[project.optional-dependencies]
+# Live ingest from stats.nba.com. Not needed to run the app -- the bundled
+# sample fixtures cover everything except real games.
+ingest = ["nba_api>=1.4", "pandas>=2.0"]
+# The text-to-SQL layer. Without it the rule-based fallback provider is used.
+llm = ["anthropic>=0.34"]
+dev = ["pytest>=8.0", "ruff>=0.6"]
+
+[project.scripts]
+clutch-ingest = "app.ingest.cli:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+filterwarnings = [
+    "ignore::DeprecationWarning",
+    "ignore:.*InsecureKeyLength.*",
+]
+
+[tool.ruff]
+line-length = 90
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",
+    # `Depends(...)` in a parameter default is the FastAPI idiom, not a bug.
+    "B008",
+]
