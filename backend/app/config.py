@@ -41,11 +41,40 @@ class Settings(BaseSettings):
     sim_service_timeout_seconds: float = 3.0
 
     # --- CORS ------------------------------------------------------------
+    # Only relevant in development, where Vite serves the UI on another port.
+    # In the deployed container one process serves both, so the browser never
+    # makes a cross-origin request and this list goes unused.
     cors_origins: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    # --- deployment ------------------------------------------------------
+    # Load the bundled sample fixtures at startup when the database has no
+    # games. Off locally (you run the ingest yourself); on in the container,
+    # where the disk starts empty on every deploy.
+    auto_seed: bool = False
+
+    # An optional shared read-only account, so someone can look around the
+    # deployed site without signing up. Both must be set for it to exist.
+    demo_email: str | None = None
+    demo_password: str | None = None
+
+    # Directory holding the built React bundle. When present, FastAPI serves
+    # the UI itself and the whole app is one process on one port.
+    frontend_dist: str = str(REPO_ROOT / "frontend" / "dist")
 
     @property
     def cors_origin_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+    @property
+    def frontend_dist_path(self) -> Path | None:
+        path = Path(self.frontend_dist)
+        return path if (path / "index.html").is_file() else None
+
+    @property
+    def demo_account(self) -> tuple[str, str] | None:
+        if self.demo_email and self.demo_password:
+            return self.demo_email.lower().strip(), self.demo_password
+        return None
 
     @property
     def is_production(self) -> bool:

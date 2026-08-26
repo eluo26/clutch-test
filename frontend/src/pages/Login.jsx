@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, setToken } from "../lib/api.js";
 import { ErrorBox } from "../components/Common.jsx";
 
@@ -8,16 +8,28 @@ export default function Login({ onSignedIn }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [demo, setDemo] = useState(null);
 
-  async function submit(e) {
-    e.preventDefault();
+  // Deployments can advertise a shared read-only account so a visitor can look
+  // around without signing up. Locally there is none and this stays hidden.
+  useEffect(() => {
+    let alive = true;
+    api
+      .meta()
+      .then((m) => alive && setDemo(m.demo))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function signIn(nextEmail, nextPassword, register = false) {
     setError(null);
     setBusy(true);
     try {
-      const res =
-        mode === "login"
-          ? await api.login(email, password)
-          : await api.register(email, password);
+      const res = register
+        ? await api.register(nextEmail, nextPassword)
+        : await api.login(nextEmail, nextPassword);
       setToken(res.access_token);
       onSignedIn(await api.me());
     } catch (err) {
@@ -25,6 +37,11 @@ export default function Login({ onSignedIn }) {
     } finally {
       setBusy(false);
     }
+  }
+
+  function submit(e) {
+    e.preventDefault();
+    signIn(email, password, mode === "register");
   }
 
   return (
@@ -72,6 +89,29 @@ export default function Login({ onSignedIn }) {
             {busy ? "…" : mode === "login" ? "Sign in" : "Create account"}
           </button>
         </form>
+
+        {demo ? (
+          <>
+            <div className="auth-divider">
+              <span>or</span>
+            </div>
+            <button
+              className="ghost"
+              style={{ width: "100%" }}
+              disabled={busy}
+              onClick={() => signIn(demo.email, demo.password)}
+            >
+              Explore with the demo account
+            </button>
+            <p
+              className="muted"
+              style={{ fontSize: 11.5, textAlign: "center", margin: "8px 0 0" }}
+            >
+              Shared and read-only. Anything you save here is visible to
+              everyone else using it.
+            </p>
+          </>
+        ) : null}
 
         <div className="auth-toggle">
           {mode === "login" ? "No account yet?" : "Already have an account?"}{" "}

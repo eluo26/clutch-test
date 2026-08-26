@@ -34,22 +34,51 @@ and query the whole play-by-play database in plain English.
 Nothing here needs the network, an API key, or a database server. The repo
 ships 100 games of sample data.
 
-```bash
-git clone <your-repo-url> clutch && cd clutch
+You need **Python 3.11+** and **Node 20+**.
 
-# 1. backend
+### Windows
+
+```powershell
+.\clutch.ps1 setup     # creates .venv, installs backend + frontend
+.\clutch.ps1 seed      # loads the bundled sample games
+.\clutch.ps1 api       # leave this running
+```
+
+Then in a **second** terminal:
+
+```powershell
+.\clutch.ps1 web
+```
+
+Open <http://localhost:5173>. If PowerShell blocks the script ("running scripts
+is disabled on this system"), use `clutch.bat setup` instead — it bypasses the
+policy for that one command without changing any machine setting.
+
+### macOS / Linux
+
+```bash
+make install && make seed && make api   # leave running
+make web                                # second terminal
+```
+
+<details>
+<summary>Or without the task runner, on any platform</summary>
+
+```bash
 cd backend
 python -m pip install -e '.[dev]'
 python -m app.ingest.cli seed          # loads the bundled sample games
-python -m pytest                       # 200 tests, ~8s
+python -m pytest                       # 231 tests, ~10s
 python -m uvicorn app.main:app --reload --port 8000
 
-# 2. frontend, in a second terminal
+# second terminal
 cd frontend && npm install && npm run dev
 ```
 
-Open http://localhost:5173, create an account, and you are in. Or use the
-Makefile: `make install && make seed && make api`, then `make web`.
+</details>
+
+Create an account on the login page — it is local, so any email works, and the
+password just needs 10+ characters including a digit.
 
 Want a calibration report without leaving the terminal?
 
@@ -303,6 +332,7 @@ Regenerate deterministically with `make fixtures`.
 
 | Method | Path | |
 |---|---|---|
+| `GET` | `/api/meta` | public: active text-to-SQL provider, demo account if any |
 | `POST` | `/api/auth/register` · `/login` | returns a bearer token |
 | `GET` | `/api/auth/me` | |
 | `GET` | `/api/games` | filter by `season`, `team` |
@@ -318,6 +348,34 @@ Regenerate deterministically with `make fixtures`.
 
 Interactive docs at http://localhost:8000/docs.
 
+## Deployment
+
+One container: FastAPI serves the API *and* the built React bundle from a single
+port, so there is no separate frontend host and no CORS in production.
+
+```bash
+gh repo create clutch --public --source=. --push
+```
+
+then point [Render](https://dashboard.render.com/blueprints) at the repo — it
+reads `render.yaml` and provisions everything, including a generated signing
+secret. Free tier, no card.
+
+Two things the free tier does that are worth knowing before you put the link
+anywhere: the instance **sleeps after ~15 minutes idle** (~50s cold start), and
+storage is **ephemeral**, so accounts do not survive a restart. The sample data
+does — `CLUTCH_AUTO_SEED` reloads it at boot — and a shared read-only demo
+account is recreated too, so the demo path always works. Both are fixable for
+$7/month. [`docs/DEPLOY.md`](docs/DEPLOY.md) covers the details, the
+environment variables, and the troubleshooting.
+
+To run the production image locally:
+
+```bash
+docker build -t clutch .
+docker run --rm -p 8000:8000 -e CLUTCH_SECRET_KEY=local-only-secret clutch
+```
+
 ## Layout
 
 ```
@@ -329,9 +387,13 @@ backend/
     routers/     auth.py · games.py · trends.py · nlq.py · calibration.py
     models.py  security.py  deps.py  config.py  db.py  main.py
   data/sample/   gzipped synthetic fixtures
-  tests/         200 tests
+  tests/         231 tests
 java-sim/        Spring Boot: MarkovSolver · EndgameSimulator · SimController
 frontend/        Vite + React + Recharts
+Dockerfile       one image: node build stage → python runtime
+render.yaml      Render blueprint
+clutch.ps1       Windows task runner (clutch.bat wraps it)
+Makefile         the same tasks on macOS / Linux
 ```
 
 ## What is deliberately simple
@@ -360,3 +422,5 @@ MIT.
 - [`docs/MODELING.md`](docs/MODELING.md) — the derivations, the assumptions,
   the parity effect, the overtime boundary rule, and an honest list of what the
   models are still missing.
+- [`docs/DEPLOY.md`](docs/DEPLOY.md) — the Render walkthrough, every environment
+  variable, what the free tier costs you, and how to make data persist.

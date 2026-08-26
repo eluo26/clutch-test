@@ -1,0 +1,20 @@
+# Normalise line endings so the repo behaves the same on Windows and Unix.
+* text=auto eol=lf
+
+# Windows tooling wants CRLF. cmd.exe in particular mishandles LF-only batch
+# files that use labels or GOTO.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary — never touch these.
+*.png binary
+*.jpg binary
+*.gz binary
+*.zip binary
+
+# Generated: keep lockfile diffs collapsed in review, but still merge them.
+frontend/package-lock.json linguist-generated=true
+
+# Sample fixtures are data, not source, so they do not skew language stats.
+backend/data/sample/* linguist-generated=true

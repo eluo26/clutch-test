@@ -55,3 +55,60 @@ jobs:
           cache: maven
       - working-directory: java-sim
         run: mvn -B verify
+
+  # Builds the deployment image and proves it actually serves. This is the
+  # check that catches a broken Dockerfile before Render does.
+  container:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: clutch:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Boot it and check the whole surface
+        run: |
+          docker run -d --name clutch -p 8000:8000 \
+            -e CLUTCH_SECRET_KEY=ci-only-secret-value-not-a-real-one \
+            -e CLUTCH_DEMO_EMAIL=demo@clutch.example \
+            -e CLUTCH_DEMO_PASSWORD=clutch-demo-2026 \
+            clutch:ci
+
+          # Auto-seeding runs at startup, so give it a moment.
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:8000/health >/dev/null; then break; fi
+            sleep 2
+          done
+
+          echo "--- health ---"
+          curl -sf http://localhost:8000/health
+
+          echo "--- the SPA is served ---"
+          curl -sf http://localhost:8000/ | grep -q '<!doctype html>'
+
+          echo "--- a client-side route falls through to index.html ---"
+          curl -sf http://localhost:8000/calibration | grep -q '<!doctype html>'
+
+          echo "--- an unknown API path 404s as JSON, not HTML ---"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/nope)" = "404"
+
+          echo "--- analytics endpoints require auth ---"
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/games)" = "401"
+
+          echo "--- the demo account exists and the data was seeded ---"
+          TOKEN=$(curl -sf -X POST http://localhost:8000/api/auth/login \
+            -H 'content-type: application/json' \
+            -d '{"email":"demo@clutch.example","password":"clutch-demo-2026"}' \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["access_token"])')
+          COUNT=$(curl -sf -H "Authorization: Bearer $TOKEN" \
+            'http://localhost:8000/api/games?limit=200' \
+            | python3 -c 'import sys,json; print(len(json.load(sys.stdin)))')
+          echo "games visible: $COUNT"
+          test "$COUNT" -gt 0
+
+          docker rm -f clutch

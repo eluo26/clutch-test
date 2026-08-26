@@ -71,6 +71,7 @@ async function request(path, { method = "GET", body, signal } = {}) {
 }
 
 export const api = {
+  meta: () => request("/api/meta"),
   register: (email, password) =>
     request("/api/auth/register", { method: "POST", body: { email, password } }),
   login: (email, password) =>

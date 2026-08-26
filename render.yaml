@@ -1,0 +1,54 @@
+# Render Blueprint. Point Render at this repo and it provisions the service
+# described here — no dashboard clicking, and the config is reviewable in git.
+#
+#   https://dashboard.render.com/blueprints  →  New Blueprint Instance
+#
+# See docs/DEPLOY.md for the walkthrough and the free-tier caveats.
+
+services:
+  - type: web
+    name: clutch
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    region: oregon
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      # Render generates a strong random value once and keeps it. The app
+      # refuses to boot in production without a real secret, so this must be
+      # set — but it must never be committed, hence generateValue.
+      - key: CLUTCH_SECRET_KEY
+        generateValue: true
+
+      - key: CLUTCH_ENV
+        value: production
+
+      # The free plan has no persistent disk, so the container filesystem is
+      # wiped on every deploy and restart. Auto-seeding means the site always
+      # comes back up with its 100 sample games rather than an empty database.
+      - key: CLUTCH_AUTO_SEED
+        value: "true"
+
+      # A shared read-only account so a visitor can look around without
+      # signing up. The password is printed on the login page by design —
+      # treat it as public, and do not reuse it anywhere.
+      - key: CLUTCH_DEMO_EMAIL
+        value: demo@clutch.example
+      - key: CLUTCH_DEMO_PASSWORD
+        value: clutch-demo-2026
+
+      # Optional. Leave unset and the text-to-SQL layer uses the deterministic
+      # rule-based provider, which needs no key and no network.
+      # `sync: false` means Render prompts for it instead of reading it here.
+      - key: CLUTCH_ANTHROPIC_API_KEY
+        sync: false
+
+      # The Java simulator is not deployed with this service. Pointing it at a
+      # dead address is intentional: the API falls back to the pure-Python
+      # solver, and a short timeout keeps that fallback fast.
+      - key: CLUTCH_SIM_SERVICE_TIMEOUT_SECONDS
+        value: "0.5"

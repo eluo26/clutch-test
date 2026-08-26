@@ -1,0 +1,34 @@
+# Build context hygiene: everything here either bloats the image, breaks the
+# build cache, or must never end up inside a container.
+.git
+.github
+.env
+*.md
+docs/
+
+# Node — reinstalled in the build stage for the right platform.
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Python
+**/__pycache__
+**/*.py[cod]
+**/.pytest_cache
+**/.ruff_cache
+**/*.egg-info
+backend/.venv
+backend/venv
+
+# Local databases. The container makes its own under /data.
+**/*.db
+**/*.db-wal
+**/*.db-shm
+
+# Java — not part of the web image; the sim service is deployed separately
+# or not at all, and the API falls back to the Python solver without it.
+java-sim/target
+
+.idea
+.vscode
+.DS_Store

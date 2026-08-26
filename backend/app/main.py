@@ -9,8 +9,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
+from app import bootstrap, spa
 from app.config import get_settings
-from app.db import init_db
+from app.db import SessionLocal, init_db
 from app.routers import auth, calibration, games, nlq, trends
 
 logging.basicConfig(
@@ -23,6 +24,9 @@ settings = get_settings()
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     init_db()
+    # Seeds an empty database and creates the demo account when configured;
+    # a no-op otherwise. Never raises -- see app/bootstrap.py.
+    bootstrap.run(SessionLocal)
     yield
 
 
@@ -71,3 +75,29 @@ app.include_router(calibration.router)
 @app.get("/health", tags=["meta"])
 def health():
     return {"status": "ok", "service": "clutch-api", "version": app.version}
+
+
+@app.get("/api/meta", tags=["meta"])
+def meta():
+    """Public, unauthenticated: what this deployment offers a visitor.
+
+    The login page reads this to decide whether to show a "try the demo
+    account" button. The password is returned deliberately -- a shared
+    read-only demo credential printed on the sign-in page is public by
+    construction, and pretending otherwise would just mean nobody can use it.
+    """
+    demo = settings.demo_account
+    return {
+        "version": app.version,
+        "text_to_sql_provider": (
+            "anthropic" if settings.anthropic_api_key else "rule-based"
+        ),
+        "demo": (
+            {"email": demo[0], "password": demo[1]} if demo is not None else None
+        ),
+    }
+
+
+# Mounted last: the SPA catch-all must sit behind every real route.
+if (_dist := settings.frontend_dist_path) is not None:
+    spa.mount(app, _dist)

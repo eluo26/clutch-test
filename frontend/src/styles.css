@@ -325,6 +325,22 @@ pre.sql {
   flex-direction: column;
   gap: 12px;
 }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 16px 0;
+  color: var(--muted);
+  font-size: 12px;
+}
+.auth-divider::before,
+.auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--line);
+}
+
 .auth-toggle {
   margin-top: 16px;
   font-size: 13px;

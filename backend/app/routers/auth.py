@@ -37,7 +37,10 @@ def register(payload: RegisterRequest, session: Session = Depends(get_session)):
     try:
         pw_hash = hash_password(payload.password)
     except PasswordPolicyError as exc:
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from None
+        # Literal 422 rather than the named constant: Starlette renamed it
+        # (UNPROCESSABLE_ENTITY -> UNPROCESSABLE_CONTENT) and deprecated the
+        # old spelling, so the number is the portable choice across versions.
+        raise HTTPException(422, str(exc)) from None
 
     user = User(email=email, password_hash=pw_hash)
     session.add(user)
