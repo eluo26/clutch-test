@@ -1,5 +1,5 @@
 # Clutch
-This is a mostly AI-built app — a proof of concept for an idea I had: modeling NBA (or any sport's) win probability as Brownian motion with drift, the way Stern proposed in 1994, and checking that against a possession-level Markov chain instead of just asserting it works.
+This is a mostly AI-built app: this is a proof of concept for an idea I had: modeling NBA (or any sport's) win probability as Brownian motion with drift, the way Stern proposed in 1994, and checking that against a possession-level Markov chain instead of just asserting it works.
 
 The idea is mine. Turning it into a working, tested, honestly-backtested system in a reasonable timeframe wasn't something I could do solo yet, so I used Claude to build the engineering around it. I used this app as a calibration for my data processing algorithm.
 
